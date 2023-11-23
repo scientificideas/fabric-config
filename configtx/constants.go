@@ -80,6 +80,9 @@ const (
 	// ImplicitMetaPolicyType is the 'Type' string for implicit meta policies.
 	ImplicitMetaPolicyType = "ImplicitMeta"
 
+	// ImplicitOrdererPolicyType is the 'Type' string for implicit orderer policies
+	ImplicitOrdererPolicyType = "ImplicitOrderer"
+
 	// SignaturePolicyType is the 'Type' string for signature policies.
 	SignaturePolicyType = "Signature"
 

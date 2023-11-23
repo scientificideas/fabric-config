@@ -27,6 +27,9 @@ const (
 	// ConsensusTypeEtcdRaft identifies the Raft-based consensus implementation.
 	ConsensusTypeEtcdRaft = "etcdraft"
 
+	// ConsensusTypeSmartBFT identifies the BFT Smart consensus implementation.
+	ConsensusTypeSmartBFT = "smartbft"
+
 	// KafkaBrokersKey is the common.ConfigValue type key name for the KafkaBrokers message.
 	KafkaBrokersKey = "KafkaBrokers"
 

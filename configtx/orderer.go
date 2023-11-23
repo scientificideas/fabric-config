@@ -20,6 +20,7 @@ import (
 	cb "github.com/hyperledger/fabric-protos-go/common"
 	ob "github.com/hyperledger/fabric-protos-go/orderer"
 	eb "github.com/hyperledger/fabric-protos-go/orderer/etcdraft"
+	"github.com/hyperledger/fabric-protos-go/orderer/smartbft"
 )
 
 const (
@@ -32,11 +33,13 @@ type Orderer struct {
 	// OrdererType is the type of orderer
 	// Options: `ConsensusTypeSolo`, `ConsensusTypeKafka` or `ConsensusTypeEtcdRaft`
 	OrdererType string
+	Addresses   []string
 	// BatchTimeout is the wait time between transactions.
 	BatchTimeout  time.Duration
 	BatchSize     orderer.BatchSize
 	Kafka         orderer.Kafka
 	EtcdRaft      orderer.EtcdRaft
+	SmartBFT      *smartbft.ConfigMetadata
 	Organizations []Organization
 	// MaxChannels is the maximum count of channels an orderer supports.
 	MaxChannels uint64
