@@ -533,7 +533,6 @@ func ExampleNewSystemChannelGenesisBlock() {
 				PreferredMaxBytes: 100,
 			},
 			BatchTimeout: 2 * time.Second,
-			State:        orderer.ConsensusStateNormal,
 		},
 		Capabilities: []string{"V2_0"},
 		Policies: map[string]configtx.Policy{
@@ -631,7 +630,6 @@ func ExampleNewApplicationChannelGenesisBlock() {
 				PreferredMaxBytes: 100,
 			},
 			BatchTimeout: 2 * time.Second,
-			State:        orderer.ConsensusStateNormal,
 		},
 		Application: configtx.Application{
 			Organizations: []configtx.Organization{

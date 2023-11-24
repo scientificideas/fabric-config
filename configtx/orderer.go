@@ -18,6 +18,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-config/configtx/orderer"
 	cb "github.com/hyperledger/fabric-protos-go/common"
+	mb "github.com/hyperledger/fabric-protos-go/msp"
 	ob "github.com/hyperledger/fabric-protos-go/orderer"
 	eb "github.com/hyperledger/fabric-protos-go/orderer/etcdraft"
 	"github.com/hyperledger/fabric-protos-go/orderer/smartbft"
@@ -47,7 +48,6 @@ type Orderer struct {
 	Capabilities []string
 	Policies     map[string]Policy
 	// Options: `ConsensusStateNormal` and `ConsensusStateMaintenance`
-	State     orderer.ConsensusState
 	ModPolicy string
 }
 
@@ -113,7 +113,6 @@ func (o *OrdererGroup) Configuration() (Orderer, error) {
 	}
 
 	ordererType := consensusTypeProto.Type
-	state := orderer.ConsensusState(ob.ConsensusType_State_name[int32(consensusTypeProto.State)])
 
 	switch consensusTypeProto.Type {
 	case orderer.ConsensusTypeSolo:
@@ -201,7 +200,6 @@ func (o *OrdererGroup) Configuration() (Orderer, error) {
 		MaxChannels:   channelRestrictions.MaxCount,
 		Capabilities:  capabilities,
 		Policies:      policies,
-		State:         state,
 		ModPolicy:     o.ordererGroup.GetModPolicy(),
 	}, nil
 }
@@ -272,7 +270,7 @@ func (o *OrdererGroup) SetEtcdRaftConsensusType(consensusMetadata orderer.EtcdRa
 		return fmt.Errorf("marshaling etcdraft metadata: %v", err)
 	}
 
-	return setValue(o.ordererGroup, consensusTypeValue(orderer.ConsensusTypeEtcdRaft, consensusMetadataBytes, ob.ConsensusType_State_value[string(consensusState)]), AdminsPolicyKey)
+	return setValue(o.ordererGroup, consensusTypeValue(orderer.ConsensusTypeEtcdRaft, consensusMetadataBytes), AdminsPolicyKey)
 }
 
 // SetConsensusState sets the consensus state.
@@ -283,7 +281,7 @@ func (o *OrdererGroup) SetConsensusState(consensusState orderer.ConsensusState) 
 		return err
 	}
 
-	return setValue(o.ordererGroup, consensusTypeValue(consensusTypeProto.Type, consensusTypeProto.Metadata, ob.ConsensusType_State_value[string(consensusState)]), AdminsPolicyKey)
+	return setValue(o.ordererGroup, consensusTypeValue(consensusTypeProto.Type, consensusTypeProto.Metadata), AdminsPolicyKey)
 }
 
 // EtcdRaftOptions returns an EtcdRaftOptionsValue that can be used to configure an etcdraft configuration's options.
@@ -460,12 +458,7 @@ func (o *OrdererGroup) AddConsenter(consenter orderer.Consenter) error {
 		return fmt.Errorf("marshaling etcdraft metadata: %v", err)
 	}
 
-	consensusState, ok := ob.ConsensusType_State_value[string(cfg.State)]
-	if !ok {
-		return fmt.Errorf("unknown consensus state '%s'", cfg.State)
-	}
-
-	err = setValue(o.ordererGroup, consensusTypeValue(cfg.OrdererType, consensusMetadata, consensusState), AdminsPolicyKey)
+	err = setValue(o.ordererGroup, consensusTypeValue(cfg.OrdererType, consensusMetadata), AdminsPolicyKey)
 	if err != nil {
 		return err
 	}
@@ -499,12 +492,7 @@ func (o *OrdererGroup) RemoveConsenter(consenter orderer.Consenter) error {
 		return fmt.Errorf("marshaling etcdraft metadata: %v", err)
 	}
 
-	consensusState, ok := ob.ConsensusType_State_value[string(cfg.State)]
-	if !ok {
-		return fmt.Errorf("unknown consensus state '%s'", cfg.State)
-	}
-
-	err = setValue(o.ordererGroup, consensusTypeValue(cfg.OrdererType, consensusMetadata, consensusState), AdminsPolicyKey)
+	err = setValue(o.ordererGroup, consensusTypeValue(cfg.OrdererType, consensusMetadata), AdminsPolicyKey)
 	if err != nil {
 		return err
 	}
@@ -771,11 +759,6 @@ func newOrdererGroup(orderer Orderer) (*cb.ConfigGroup, error) {
 
 	// add orderer groups
 	for _, org := range orderer.Organizations {
-		// As of fabric v1.4 we expect new system channels to contain orderer endpoints at the org level
-		if len(org.OrdererEndpoints) == 0 {
-			return nil, fmt.Errorf("orderer endpoints are not defined for org %s", org.Name)
-		}
-
 		ordererGroup.Groups[org.Name], err = newOrdererOrgConfigGroup(org)
 		if err != nil {
 			return nil, fmt.Errorf("org group '%s': %v", org.Name, err)
@@ -827,16 +810,15 @@ func addOrdererValues(ordererGroup *cb.ConfigGroup, o Orderer) error {
 		if consensusMetadata, err = marshalEtcdRaftMetadata(o.EtcdRaft); err != nil {
 			return fmt.Errorf("marshaling etcdraft metadata for orderer type '%s': %v", orderer.ConsensusTypeEtcdRaft, err)
 		}
+	case orderer.ConsensusTypeSmartBFT:
+		if consensusMetadata, err = marshalSmartBFTMetadata(o.SmartBFT); err != nil {
+			return fmt.Errorf("cannot marshal metadata for orderer type %s: %w", orderer.ConsensusTypeSmartBFT, err)
+		}
 	default:
 		return fmt.Errorf("unknown orderer type '%s'", o.OrdererType)
 	}
 
-	consensusState, ok := ob.ConsensusType_State_value[string(o.State)]
-	if !ok {
-		return fmt.Errorf("unknown consensus state '%s'", o.State)
-	}
-
-	err = setValue(ordererGroup, consensusTypeValue(o.OrdererType, consensusMetadata, consensusState), AdminsPolicyKey)
+	err = setValue(ordererGroup, consensusTypeValue(o.OrdererType, consensusMetadata), AdminsPolicyKey)
 	if err != nil {
 		return err
 	}
@@ -916,13 +898,12 @@ func kafkaBrokersValue(brokers []string) *standardConfigValue {
 
 // consensusTypeValue returns the config definition for the orderer consensus type.
 // It is a value for the /Channel/Orderer group.
-func consensusTypeValue(consensusType string, consensusMetadata []byte, consensusState int32) *standardConfigValue {
+func consensusTypeValue(consensusType string, consensusMetadata []byte) *standardConfigValue {
 	return &standardConfigValue{
 		key: orderer.ConsensusTypeKey,
 		value: &ob.ConsensusType{
 			Type:     consensusType,
 			Metadata: consensusMetadata,
-			State:    ob.ConsensusType_State(consensusState),
 		},
 	}
 }
@@ -1036,6 +1017,38 @@ func unmarshalEtcdRaftMetadata(mdBytes []byte) (orderer.EtcdRaft, error) {
 			SnapshotIntervalSize: etcdRaftMetadata.Options.SnapshotIntervalSize,
 		},
 	}, nil
+}
+
+// marshalSmartBFTMetadata serializes Smart BFT metadata.
+func marshalSmartBFTMetadata(md *smartbft.ConfigMetadata) ([]byte, error) {
+	copyMd := proto.Clone(md).(*smartbft.ConfigMetadata)
+	for _, c := range copyMd.Consenters {
+		if c.ClientTlsCert == nil {
+			return nil, fmt.Errorf("client tls cert for consenter %s:%d is required", c.Host, c.Port)
+		}
+
+		if c.ServerTlsCert == nil {
+			return nil, fmt.Errorf("server tls cert for consenter %s:%d is required", c.Host, c.Port)
+		}
+
+		if c.Identity == nil {
+			return nil, fmt.Errorf("identity for consenter %s:%d is required", c.Host, c.Port)
+		}
+
+		idBytes := c.Identity
+		var sid mb.SerializedIdentity
+		if err := proto.Unmarshal(c.Identity, &sid); err != nil {
+			idBytes, err = proto.Marshal(&mb.SerializedIdentity{
+				Mspid:   c.MspId,
+				IdBytes: c.Identity,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("cannot marshal consenter serialized identity %s:%d: %s", c.GetHost(), c.GetPort(), err)
+			}
+		}
+		c.Identity = idBytes
+	}
+	return proto.Marshal(copyMd)
 }
 
 // getOrdererOrg returns the organization config group for an orderer org in the

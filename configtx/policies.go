@@ -264,6 +264,21 @@ func setPolicy(cg *cb.ConfigGroup, policyName string, policy Policy) error {
 				Value: signaturePolicy,
 			},
 		}
+	case ImplicitOrdererPolicyType:
+		iop, err := policydsl.NewPolicyFromString(policy.Rule)
+		if err != nil {
+			return fmt.Errorf("invalid signature policy rule '%s', error - %w", policy.Rule, err)
+		}
+		if policy.ModPolicy == "" {
+			policy.ModPolicy = AdminsPolicyKey
+		}
+		cg.Policies[policyName] = &cb.ConfigPolicy{
+			ModPolicy: policy.ModPolicy,
+			Policy: &cb.Policy{
+				Type:  int32(cb.Policy_IMPLICIT_ORDERER),
+				Value: MarshalOrPanic(iop),
+			},
+		}
 	default:
 		return fmt.Errorf("unknown policy type: %s", policy.Type)
 	}
@@ -274,4 +289,14 @@ func setPolicy(cg *cb.ConfigGroup, policyName string, policy Policy) error {
 // removePolicy removes an existing policy from an group key organization.
 func removePolicy(configGroup *cb.ConfigGroup, policyName string, policies map[string]Policy) {
 	delete(configGroup.Policies, policyName)
+}
+
+// MarshalOrPanic serializes a protobuf message and panics if this
+// operation fails
+func MarshalOrPanic(pb proto.Message) []byte {
+	data, err := proto.Marshal(pb)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }

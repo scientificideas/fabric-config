@@ -340,6 +340,17 @@ func consortiumValue(name string) *standardConfigValue {
 	}
 }
 
+// ordererAddressesValue returns the a config definition for the orderer addresses.
+// It is a value for the /Channel group.
+func ordererAddressesValue(addresses []string) *standardConfigValue {
+	return &standardConfigValue{
+		key: OrdererAddressesKey,
+		value: &cb.OrdererAddresses{
+			Addresses: addresses,
+		},
+	}
+}
+
 // channelCreationPolicyValue returns the config definition for a consortium's channel creation policy
 // It is a value for the /Channel/Consortiums/*/*.
 func channelCreationPolicyValue(policy *cb.Policy) *standardConfigValue {

@@ -264,17 +264,17 @@ func newContext() *context {
 // GATE(P[, P])
 //
 // where:
-//	- GATE is either "and" or "or"
-//	- P is either a principal or another nested call to GATE
+//   - GATE is either "and" or "or"
+//   - P is either a principal or another nested call to GATE
 //
 // A principal is defined as:
 //
-// ORG.ROLE
+// # ORG.ROLE
 //
 // where:
-//	- ORG is a string (representing the MSP identifier)
-//	- ROLE takes the value of any of the RoleXXX constants representing
-//    the required role
+//   - ORG is a string (representing the MSP identifier)
+//   - ROLE takes the value of any of the RoleXXX constants representing
+//     the required role
 func FromString(policy string) (*cb.SignaturePolicyEnvelope, error) {
 	// first we translate the and/or business into outof gates
 	intermediate, err := govaluate.NewEvaluableExpressionWithFunctions(
@@ -381,4 +381,13 @@ func FromString(policy string) (*cb.SignaturePolicyEnvelope, error) {
 	}
 
 	return p, nil
+}
+
+// NewPolicyFromString creates a new implicit orderer policy from the given rule
+func NewPolicyFromString(ruleName string) (*cb.ImplicitOrdererPolicy, error) {
+	ruleVal, exist := cb.ImplicitOrdererPolicy_Rule_value[ruleName]
+	if !exist {
+		return nil, fmt.Errorf("ImplicitOrdererPolicy Rule '%v' not supported", ruleName)
+	}
+	return &cb.ImplicitOrdererPolicy{Rule: cb.ImplicitOrdererPolicy_Rule(ruleVal)}, nil
 }

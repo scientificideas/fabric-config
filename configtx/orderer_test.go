@@ -841,20 +841,6 @@ func TestNewOrdererGroupFailure(t *testing.T) {
 			},
 			err: "marshaling etcdraft metadata for orderer type 'etcdraft': server tls cert for consenter host1:123 is required",
 		},
-		{
-			testName: "When consensus state is invalid",
-			ordererMod: func(o *Orderer) {
-				o.State = "invalid state"
-			},
-			err: "unknown consensus state 'invalid state'",
-		},
-		{
-			testName: "When consensus state is invalid",
-			ordererMod: func(o *Orderer) {
-				o.State = "invalid state"
-			},
-			err: "unknown consensus state 'invalid state'",
-		},
 	}
 
 	for _, tt := range tests {
@@ -1286,7 +1272,7 @@ func TestOrdererConfigurationFailure(t *testing.T) {
 			testName:    "When the config contains an unknown consensus type",
 			ordererType: orderer.ConsensusTypeSolo,
 			configMod: func(config *cb.Config, gt *GomegaWithT) {
-				err := setValue(config.ChannelGroup.Groups[OrdererGroupKey], consensusTypeValue("badtype", nil, 0), AdminsPolicyKey)
+				err := setValue(config.ChannelGroup.Groups[OrdererGroupKey], consensusTypeValue("badtype", nil), AdminsPolicyKey)
 				gt.Expect(err).NotTo(HaveOccurred())
 			},
 			expectedErr: "config contains unknown consensus type 'badtype'",
@@ -1303,7 +1289,7 @@ func TestOrdererConfigurationFailure(t *testing.T) {
 			testName:    "Failed unmarshaling etcd raft metadata",
 			ordererType: orderer.ConsensusTypeEtcdRaft,
 			configMod: func(config *cb.Config, gt *GomegaWithT) {
-				err := setValue(config.ChannelGroup.Groups[OrdererGroupKey], consensusTypeValue(orderer.ConsensusTypeEtcdRaft, nil, 0), AdminsPolicyKey)
+				err := setValue(config.ChannelGroup.Groups[OrdererGroupKey], consensusTypeValue(orderer.ConsensusTypeEtcdRaft, nil), AdminsPolicyKey)
 				gt.Expect(err).NotTo(HaveOccurred())
 			},
 			expectedErr: "unmarshaling etcd raft metadata: missing etcdraft metadata options in config",
@@ -2384,7 +2370,7 @@ func TestAddConsenterFailures(t *testing.T) {
 				return o
 			},
 			ordererGroup: func(og *cb.ConfigGroup, ord Orderer) {
-				_ = setValue(og, consensusTypeValue("foobar", []byte{}, 1), AdminsPolicyKey)
+				_ = setValue(og, consensusTypeValue("foobar", []byte{}), AdminsPolicyKey)
 			},
 			consenter: func(c orderer.Consenter) orderer.Consenter {
 				return c
@@ -2423,9 +2409,8 @@ func TestAddConsenterFailures(t *testing.T) {
 				return o
 			},
 			ordererGroup: func(og *cb.ConfigGroup, ord Orderer) {
-				ord.State = "bababa"
 				met, _ := marshalEtcdRaftMetadata(ord.EtcdRaft)
-				_ = setValue(og, consensusTypeValue(ord.OrdererType, met, 3), AdminsPolicyKey)
+				_ = setValue(og, consensusTypeValue(ord.OrdererType, met), AdminsPolicyKey)
 			},
 			consenter: func(c orderer.Consenter) orderer.Consenter {
 				return c
@@ -2771,7 +2756,7 @@ func TestRemoveConsenterFailures(t *testing.T) {
 				return o
 			},
 			ordererGroup: func(og *cb.ConfigGroup, ord Orderer) {
-				_ = setValue(og, consensusTypeValue("foobar", []byte{}, 1), AdminsPolicyKey)
+				_ = setValue(og, consensusTypeValue("foobar", []byte{}), AdminsPolicyKey)
 			},
 			consenter: func(c orderer.Consenter) orderer.Consenter {
 				return c
@@ -2797,9 +2782,8 @@ func TestRemoveConsenterFailures(t *testing.T) {
 				return o
 			},
 			ordererGroup: func(og *cb.ConfigGroup, ord Orderer) {
-				ord.State = "bababa"
 				met, _ := marshalEtcdRaftMetadata(ord.EtcdRaft)
-				_ = setValue(og, consensusTypeValue(ord.OrdererType, met, 3), AdminsPolicyKey)
+				_ = setValue(og, consensusTypeValue(ord.OrdererType, met), AdminsPolicyKey)
 			},
 			consenter: func(c orderer.Consenter) orderer.Consenter {
 				return c
@@ -6236,7 +6220,6 @@ func baseSoloOrderer(t *testing.T) (Orderer, []*ecdsa.PrivateKey) {
 			AbsoluteMaxBytes:  100,
 			PreferredMaxBytes: 100,
 		},
-		State:     orderer.ConsensusStateNormal,
 		ModPolicy: AdminsPolicyKey,
 	}, []*ecdsa.PrivateKey{privKey}
 }

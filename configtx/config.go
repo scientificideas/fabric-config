@@ -279,6 +279,20 @@ func newChannelGroupWithOrderer(channelConfig Channel) (*cb.ConfigGroup, error) 
 		return nil, err
 	}
 
+	if len(channelConfig.Orderer.Addresses) > 0 {
+		err = setValue(channelGroup, ordererAddressesValue(channelConfig.Orderer.Addresses), ordererAdminsPolicyName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if channelConfig.Consortium != "" {
+		err = setValue(channelGroup, consortiumValue(channelConfig.Consortium), AdminsPolicyKey)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if len(channelConfig.Capabilities) == 0 {
 		return nil, errors.New("capabilities is not defined in channel config")
 	}
